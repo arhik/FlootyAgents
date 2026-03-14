@@ -91,11 +91,11 @@ function print_agent_tree(agent::Agent; maxdepth=5)
     print_tree(stdout, agent, maxdepth=maxdepth)
 end
 
-function is_root(agent::Agent)
+function is_root(agent::AbstractAgent)
     agent.parent === nothing
 end
 
-function root(agent::Agent)
+function root(agent::AbstractAgent)
     current = agent
     while current.parent !== nothing
         current = current.parent
@@ -103,13 +103,13 @@ function root(agent::Agent)
     current
 end
 
-function siblings(agent::Agent)
-    agent.parent === nothing && return Agent[]
+function siblings(agent::AbstractAgent)
+    agent.parent === nothing && return AbstractAgent[]
     filter(c -> c !== agent, agent.parent.children)
 end
 
-function descendants(agent::Agent)
-    result = Agent[]
+function descendants(agent::AbstractAgent)
+    result = AbstractAgent[]
     for child in agent.children
         push!(result, child)
         append!(result, descendants(child))
