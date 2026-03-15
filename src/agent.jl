@@ -1,9 +1,9 @@
 mutable struct Agent <: AbstractAgent
     id::UUID
     name::String
-    provider::AbstractLLMProvider
-    context::AbstractContextStore
-    tools::Vector{<:AbstractTool}
+    provider::Union{AbstractLLMProvider,Nothing}
+    context::Union{AbstractContextStore,Nothing}
+    tools::Vector{AbstractTool}
     model::String
     created_at::DateTime
     metadata::Dict{String,Any}
@@ -12,6 +12,9 @@ mutable struct Agent <: AbstractAgent
 
     channels::Dict{UUID, Channel{AbstractMessage}}
     active_tasks::Dict{UUID, Task}
+
+    # Empty constructor for StructTypes deserialization
+    Agent() = new(UUIDs.uuid4(), "", nothing, nothing, AbstractTool[], "", now(), Dict{String,Any}(), Agent[], nothing, Dict{UUID,Channel{AbstractMessage}}(), Dict{UUID,Task}())
 
     function Agent(name::String, provider::AbstractLLMProvider;
                    model::String="nemotron-3-nano:30b-cloud",
@@ -32,8 +35,8 @@ mutable struct Agent <: AbstractAgent
 end
 
 FlootyAbstract.role(agent::Agent) = agent.name
-FlootyAbstract.provider(agent::Agent) = agent.provider
-FlootyAbstract.context(agent::Agent) = agent.context
+FlootyAbstract.provider(agent::Agent) = agent.provider === nothing ? error("Agent has no provider") : agent.provider
+FlootyAbstract.context(agent::Agent) = agent.context === nothing ? error("Agent has no context") : agent.context
 FlootyAbstract.tools(agent::Agent) = agent.tools
 
 function add_child!(parent::Agent, child::Agent)
@@ -47,7 +50,7 @@ function create_agent(name::String, provider_id::Symbol=:ollama; kwargs...)
 end
 
 function list_default_tools()
-    [pwd_tool(), ls_tool(), read_tool(), write_tool()]
+    [pwd_tool(), ls_tool(), read_tool(), write_tool(), shell_tool()]
 end
 
 function add_tool!(agent::Agent, tool::AbstractTool)
