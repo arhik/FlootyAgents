@@ -67,6 +67,22 @@ function FlootyAbstract.chat(agent::Agent, message::String;
                               auto_tools::Bool=true)
     msg = create_message(provider(agent), "user", message)
     add_message!(context(agent), msg)
+    _do_chat(agent, stream, auto_tools)
+end
+
+# New: Chat with attachments
+function FlootyAbstract.chat(agent::Agent, message::String, attachments::Vector{<:AbstractAttachment};
+                              stream::Bool=false,
+                              auto_tools::Bool=true)
+    # Create message with attachments using provider
+    prov = provider(agent)
+    msg = create_message(prov, "user", message, attachments)
+    add_message!(context(agent), msg)
+    _do_chat(agent, stream, auto_tools)
+end
+
+# Internal function to handle the actual chat logic
+function _do_chat(agent::Agent, stream::Bool, auto_tools::Bool)
 
     open("/tmp/agent.log", "a") do f
         println(f, "[$(now())] Chat starting for agent: ", agent.name)
@@ -96,10 +112,17 @@ function FlootyAbstract.chat(agent::Agent, message::String;
             return response
         end
 
-        add_message!(context(agent), response.message)
-        
-        open("/tmp/agent.log", "a") do f
-            println(f, "[$(now())] Added response to context")
+        # Only add non-empty messages (skip empty LLM responses after tool calls)
+        msg_content = content(response.message)
+        if msg_content !== nothing && !isempty(msg_content)
+            add_message!(context(agent), response.message)
+            open("/tmp/agent.log", "a") do f
+                println(f, "[$(now())] Added response to context")
+            end
+        else
+            open("/tmp/agent.log", "a") do f
+                println(f, "[$(now())] Skipped empty response message")
+            end
         end
 
         # Return if streaming, no auto-tools, or no tool calls
