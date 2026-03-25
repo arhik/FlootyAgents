@@ -6,6 +6,7 @@ using FlootyAbstract: AbstractAgent, AbstractLLMProvider, AbstractContextStore, 
                       tool_name, call_name, call_arguments,
                       execute_tool, create_message, create_provider_instance, content, role
 import FlootyAbstract: create_agent, get_messages
+using FlootyBase: Tool
 using FlootyStreams: OllamaProvider, OllamaMessage, OllamaTool
 using FlootyContextManager: ContextStore, add_message!, clear_history!, AbstractContextAlgorithm, SimpleStack, InfStack, get_context
 using AbstractTrees
@@ -45,10 +46,13 @@ StructTypes.subtypes(::Type{AbstractContextStore}) = (
 )
 
 # Abstract type discrimination for tools
+# FlootyAgents registers both provider-specific and generic tools
+# since it can see both OllamaTool (from FlootyStreams) and Tool (from FlootyBase)
 StructTypes.StructType(::Type{AbstractTool}) = StructTypes.AbstractType()
 StructTypes.subtypekey(::Type{AbstractTool}) = :_type
 StructTypes.subtypes(::Type{AbstractTool}) = (
-    OllamaTool=OllamaTool,
+    OllamaTool=OllamaTool,  # Provider-specific tool from FlootyStreams
+    Tool=Tool,               # Generic tool from FlootyBase
 )
 
 # Abstract type discrimination for Agent (used by Session)
