@@ -18,7 +18,7 @@ mutable struct Agent <: AbstractAgent
 
     function Agent(name::String, provider::AbstractLLMProvider;
                    model::String="nemotron-3-nano:30b-cloud",
-                   tools::Vector{<:AbstractTool}=list_default_tools(),
+                   tools::Vector{<:AbstractTool}=AbstractTool[],
                    metadata::Dict{String,Any}=Dict{String,Any}())
         new(UUIDs.uuid4(), name, provider, ContextStore(),
             tools, model, now(), metadata, Agent[], nothing,
@@ -26,7 +26,7 @@ mutable struct Agent <: AbstractAgent
     end
     function Agent(name::String, provider::AbstractLLMProvider, context::ContextStore;
                    model::String="nemotron-3-nano:30b-cloud",
-                   tools::Vector{<:AbstractTool}=list_default_tools(),
+                   tools::Vector{<:AbstractTool}=AbstractTool[],
                    metadata::Dict{String,Any}=Dict{String,Any}())
         new(UUIDs.uuid4(), name, provider, context,
             tools, model, now(), metadata, Agent[], nothing,
@@ -47,10 +47,6 @@ end
 function create_agent(name::String, provider_id::Symbol=:ollama; kwargs...)
     provider = create_provider_instance(Val(provider_id))
     Agent(name, provider; kwargs...)
-end
-
-function list_default_tools()
-    [pwd_tool(), ls_tool(), read_tool(), write_tool(), shell_tool()]
 end
 
 function add_tool!(agent::Agent, tool::AbstractTool)

@@ -5,16 +5,16 @@ using FlootyAbstract: AbstractAgent, AbstractLLMProvider, AbstractContextStore, 
                       AbstractMessage, AbstractToolCall, AbstractFlootyError,
                       tool_name, call_name, call_arguments,
                       execute_tool, create_message, create_provider_instance, content, role
-using FlootyStreams: OllamaProvider, OllamaMessage, OllamaTool,
-                     pwd_tool, ls_tool, read_tool, write_tool, shell_tool
-using FlootyContextManager: ContextStore, add_message!, get_messages, clear_history!, AbstractContextAlgorithm, SimpleStack, InfStack, get_context
+import FlootyAbstract: create_agent, get_messages
+using FlootyStreams: OllamaProvider, OllamaMessage, OllamaTool
+using FlootyContextManager: ContextStore, add_message!, clear_history!, AbstractContextAlgorithm, SimpleStack, InfStack, get_context
 using AbstractTrees
 using UUIDs
 using Dates
 using OrderedCollections: OrderedDict
 
-export Agent, create_agent, reset!, add_child!, is_root, root, siblings, descendants, print_agent_tree
-export list_default_tools, add_tool!, remove_tool!
+export Agent, reset!, add_child!, is_root, root, siblings, descendants, print_agent_tree
+export add_tool!, remove_tool!
 export create_subagent, select_context, launch_task, wait_for_results, launch_and_wait
 export SimilaritySearch, KeywordMatch
 
@@ -70,6 +70,9 @@ function FlootyAbstract.chat(agent::Agent, message::String;
     _do_chat(agent, stream, auto_tools)
 end
 
+# Note: _do_chat may return either a ChatResponse or the last ContextMessage
+# Callers should handle both cases appropriately
+
 # New: Chat with attachments
 function FlootyAbstract.chat(agent::Agent, message::String, attachments::Vector{<:AbstractAttachment};
                               stream::Bool=false,
@@ -112,12 +115,18 @@ function _do_chat(agent::Agent, stream::Bool, auto_tools::Bool)
             return response
         end
 
+        open("/tmp/agent.log", "a") do f
+            println(f, "[$(now())] Response message: content='$(content(response.message))' tool_calls=$(response.message.tool_calls)")
+        end
+
         # Only add non-empty messages (skip empty LLM responses after tool calls)
+        # BUT always add messages that have tool calls
         msg_content = content(response.message)
-        if msg_content !== nothing && !isempty(msg_content)
+        has_tool_calls = response.message.tool_calls !== nothing && !isempty(response.message.tool_calls)
+        if (msg_content !== nothing && !isempty(msg_content)) || has_tool_calls
             add_message!(context(agent), response.message)
             open("/tmp/agent.log", "a") do f
-                println(f, "[$(now())] Added response to context")
+                println(f, "[$(now())] Added response to context (has_content=$(msg_content !== nothing && !isempty(msg_content)), has_tool_calls=$has_tool_calls)")
             end
         else
             open("/tmp/agent.log", "a") do f
