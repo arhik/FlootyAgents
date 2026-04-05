@@ -4,7 +4,8 @@ using FlootyAbstract
 using FlootyAbstract: AbstractAgent, AbstractLLMProvider, AbstractContextStore, AbstractTool,
                       AbstractMessage, AbstractToolCall, AbstractFlootyError,
                       tool_name, call_name, call_arguments,
-                      execute_tool, create_message, create_provider_instance, content, role
+                      execute_tool, create_message, create_provider_instance, content, role,
+                      response_message, response_has_tool_calls
 import FlootyAbstract: create_agent, get_messages
 using FlootyBase: Tool
 using FlootyStreams: OllamaProvider, OllamaMessage, OllamaTool
@@ -119,16 +120,16 @@ function _do_chat(agent::Agent, stream::Bool, auto_tools::Bool)
             return response
         end
 
+        resp_msg = response_message(response)
+
         open("/tmp/agent.log", "a") do f
-            println(f, "[$(now())] Response message: content='$(content(response.message))' tool_calls=$(response.message.tool_calls)")
+            println(f, "[$(now())] Response message: content='$(content(resp_msg))' tool_calls=$(tool_calls(resp_msg))")
         end
 
-        # Only add non-empty messages (skip empty LLM responses after tool calls)
-        # BUT always add messages that have tool calls
-        msg_content = content(response.message)
-        has_tool_calls = response.message.tool_calls !== nothing && !isempty(response.message.tool_calls)
+        msg_content = content(resp_msg)
+        has_tool_calls = response_has_tool_calls(response)
         if (msg_content !== nothing && !isempty(msg_content)) || has_tool_calls
-            add_message!(context(agent), response.message)
+            add_message!(context(agent), resp_msg)
             open("/tmp/agent.log", "a") do f
                 println(f, "[$(now())] Added response to context (has_content=$(msg_content !== nothing && !isempty(msg_content)), has_tool_calls=$has_tool_calls)")
             end
@@ -138,22 +139,18 @@ function _do_chat(agent::Agent, stream::Bool, auto_tools::Bool)
             end
         end
 
-        # Return if streaming, no auto-tools, or no tool calls
-        if stream || !auto_tools ||
-           response.message.tool_calls === nothing ||
-           isempty(response.message.tool_calls)
+        if stream || !auto_tools || !response_has_tool_calls(response)
             open("/tmp/agent.log", "a") do f
                 println(f, "[$(now())] Returning response")
             end
             return response
         end
 
-        # Execute tools and continue loop
         open("/tmp/agent.log", "a") do f
             println(f, "[$(now())] Executing tools...")
         end
         
-        for tc in response.message.tool_calls
+        for tc in tool_calls(resp_msg)
             tool_name_str = call_name(tc)
             tool_args = call_arguments(tc)
             result = execute_tool(tool_name_str, tool_args)

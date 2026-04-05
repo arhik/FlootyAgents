@@ -1,3 +1,5 @@
+using FlootyAbstract: response_message
+
 mutable struct Agent <: AbstractAgent
     id::UUID
     name::String
@@ -207,7 +209,7 @@ function launch_task(parent::Agent, child_id::UUID, task_description::String)
                 result_msg = create_result_message(child_id, :error, 
                     "OllamaError: $(response.message)")
             else
-                result_content = content(response.message)
+                result_content = content(response_message(response))
                 result_msg = create_result_message(child_id, :success, result_content)
             end
             
