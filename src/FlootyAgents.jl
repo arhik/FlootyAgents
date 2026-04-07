@@ -120,6 +120,14 @@ function _do_chat(agent::Agent, stream::Bool, auto_tools::Bool)
             return response
         end
 
+        # Handle streaming response (Channel) - return it directly without processing
+        if response isa Channel
+            open("/tmp/agent.log", "a") do f
+                println(f, "[$(now())] Streaming response detected, returning channel")
+            end
+            return response
+        end
+
         resp_msg = response_message(response)
 
         open("/tmp/agent.log", "a") do f
