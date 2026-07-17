@@ -19,3 +19,9 @@ AbstractTrees = "0.4.5"
 Dates = "1.11.0"
 OrderedCollections = "1.8.1"
 UUIDs = "1.11.0"
+
+[sources]
+FlootyAbstract = {path = "../FlootyAbstract"}
+FlootyBase = {path = "../FlootyBase"}
+FlootyContextManager = {path = "../FlootyContextManager"}
+FlootyStreams = {path = "../FlootyStreams"}
